@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>table2katex — Convertidor de tablas para Dynalist</title>
+<style>
+  :root {
+    --bg: #14171c;
+    --panel: #1b1f26;
+    --panel-border: #2a2f38;
+    --ink: #e7e9ec;
+    --ink-dim: #8b93a1;
+    --accent: #5fb3a3;
+    --accent-ink: #0c1210;
+    --warn: #e0a458;
+    --mono: "SF Mono", "Cascadia Code", "JetBrains Mono", Consolas, "Courier New", monospace;
+    --sans: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    height: 100%;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+  }
+
+  .app {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    padding: 20px;
+    gap: 14px;
+  }
+
+  header {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .header-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  h1 {
+    font-size: 17px;
+    font-weight: 600;
+    margin: 0;
+    letter-spacing: 0.2px;
+  }
+  h1 span { color: var(--accent); }
+
+  header p {
+    margin: 0;
+    font-size: 12.5px;
+    color: var(--ink-dim);
+  }
+
+  .panels {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    min-height: 0;
+  }
+
+  .panel {
+    display: flex;
+    flex-direction: column;
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    overflow: hidden;
+    min-height: 0;
+  }
+
+  .panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--panel-border);
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .panel-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-dim);
+    white-space: nowrap;
+  }
+
+  .toggle-group {
+    display: flex;
+    gap: 4px;
+    background: var(--bg);
+    border: 1px solid var(--panel-border);
+    border-radius: 7px;
+    padding: 3px;
+  }
+
+  .toggle-btn {
+    border: none;
+    background: transparent;
+    color: var(--ink-dim);
+    font-family: var(--sans);
+    font-size: 12px;
+    padding: 5px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background 0.12s ease, color 0.12s ease;
+  }
+  .toggle-btn:hover { color: var(--ink); }
+  .toggle-btn.active {
+    background: var(--accent);
+    color: var(--accent-ink);
+    font-weight: 600;
+  }
+
+  .toggle-btn.fixed {
+    background: var(--accent);
+    color: var(--accent-ink);
+    font-weight: 600;
+    cursor: default;
+  }
+
+  .panel-head-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  select {
+    background: var(--bg);
+    color: var(--ink);
+    border: 1px solid var(--panel-border);
+    border-radius: 7px;
+    font-family: var(--sans);
+    font-size: 12px;
+    padding: 5px 8px;
+    cursor: pointer;
+  }
+  select:hover { border-color: var(--accent); }
+
+  textarea {
+    flex: 1;
+    resize: none;
+    border: none;
+    outline: none;
+    background: transparent;
+    color: var(--ink);
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.55;
+    padding: 14px;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  textarea::placeholder { color: var(--ink-dim); }
+
+  .panel-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    border-top: 1px solid var(--panel-border);
+    font-size: 11.5px;
+    color: var(--ink-dim);
+    min-height: 30px;
+  }
+
+  .copy-btn {
+    border: 1px solid var(--panel-border);
+    background: transparent;
+    color: var(--ink-dim);
+    font-family: var(--sans);
+    font-size: 11.5px;
+    padding: 4px 9px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .copy-btn:hover { color: var(--ink); border-color: var(--accent); }
+
+  .controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 22px;
+    padding: 4px 0 2px;
+  }
+
+  .options {
+    display: flex;
+    gap: 16px;
+    font-size: 12.5px;
+    color: var(--ink-dim);
+  }
+  .options label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .options input { accent-color: var(--accent); }
+
+  .convert-btn {
+    border: none;
+    background: var(--accent);
+    color: var(--accent-ink);
+    font-family: var(--sans);
+    font-size: 14px;
+    font-weight: 700;
+    padding: 11px 30px;
+    border-radius: 8px;
+    cursor: pointer;
+    letter-spacing: 0.2px;
+    transition: transform 0.08s ease, filter 0.12s ease;
+  }
+  .convert-btn:hover { filter: brightness(1.08); }
+  .convert-btn:active { transform: scale(0.98); }
+
+  .status {
+    font-size: 12px;
+    color: var(--ink-dim);
+    min-width: 160px;
+  }
+  .status.ok { color: var(--accent); }
+  .status.err { color: #e0755f; }
+
+  @media (max-width: 760px) {
+    .panels { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <div class="header-top">
+      <h1>table2katex <span id="brandSuffix">· para Dynalist</span></h1>
+      <select id="langSelect" title="Language / Idioma">
+        <option value="es" selected>🇪🇸 Español</option>
+        <option value="en">🇬🇧 English</option>
+        <option value="fr">🇫🇷 Français</option>
+        <option value="de">🇩🇪 Deutsch</option>
+        <option value="ru">🇷🇺 Русский</option>
+        <option value="zh">🇨🇳 中文</option>
+      </select>
+    </div>
+    <p id="headerSubtitle">Pega una tabla a la izquierda, elige su formato de origen, y conviértela a Katex.</p>
+  </header>
+
+  <div class="panels">
+
+    <section class="panel">
+      <div class="panel-head">
+        <span class="panel-title" id="panelInputTitle">Entrada</span>
+        <div class="toggle-group" id="formatGroup">
+          <button class="toggle-btn active" data-format="auto">Auto</button>
+          <button class="toggle-btn" data-format="html">HTML</button>
+          <button class="toggle-btn" data-format="latex">LaTeX</button>
+          <button class="toggle-btn" data-format="tsv">Excel / TSV</button>
+        </div>
+      </div>
+      <textarea id="inputArea" placeholder="Pega aquí tu tabla:
+&#10;— copiada de Excel o Word (Ctrl+V)
+— o el código fuente HTML (&lt;table&gt;...)
+— o el código fuente LaTeX (\begin{tabular}...)"></textarea>
+      <div class="panel-foot">
+        <span id="inputInfo">Esperando contenido…</span>
+        <button class="copy-btn" id="pasteBtn">Pegar del portapapeles</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <span class="panel-title" id="panelOutputTitle">Salida</span>
+        <div class="panel-head-right">
+          <select id="fontSelect" title="Familia tipográfica (Katex solo trae estas dos)">
+            <option value="serif">Serif</option>
+            <option value="sans" selected>Sans-serif</option>
+          </select>
+          <select id="sizeSelect" title="Tamaño de fuente de la tabla">
+            <option value="none">Tamaño normal</option>
+            <option value="small" selected>Pequeña (recomendado)</option>
+            <option value="footnotesize">Más pequeña</option>
+            <option value="scriptsize">Mínima</option>
+          </select>
+          <div class="toggle-group">
+            <button class="toggle-btn fixed">Katex</button>
+          </div>
+        </div>
+      </div>
+      <textarea id="outputArea" placeholder="El resultado en formato Katex aparecerá aquí…" spellcheck="false"></textarea>
+      <div class="panel-foot">
+        <span id="outputInfo"></span>
+        <button class="copy-btn" id="copyBtn">Copiar resultado</button>
+      </div>
+    </section>
+
+  </div>
+
+  <div class="controls">
+    <div class="options">
+      <label><span id="bordersLabelText">Bordes:</span>
+        <select id="borderStyle">
+          <option value="full" selected>Completos</option>
+          <option value="horizontal">Solo horizontales</option>
+          <option value="vertical">Solo verticales</option>
+          <option value="none">Sin bordes</option>
+        </select>
+      </label>
+      <label><input type="checkbox" id="optGrid"> <span id="gridLabelText">Líneas entre todas las filas</span></label>
+      <label><input type="checkbox" id="optBold"> <span id="boldLabelText">Encabezado en negrita</span></label>
+    </div>
+    <button class="convert-btn" id="convertBtn">Convertir →</button>
+    <span class="status" id="statusMsg"></span>
+  </div>
+
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ---------- Traducciones ----------
+  const translations = {
+    es: {
+      pageTitle: "table2katex — Convertidor de tablas para Dynalist",
+      brandSuffix: "· para Dynalist",
+      subtitle: "Pega una tabla a la izquierda, elige su formato de origen, y conviértela a Katex.",
+      panelInput: "Entrada", panelOutput: "Salida",
+      fmtAuto: "Auto", fmtHtml: "HTML", fmtLatex: "LaTeX", fmtTsv: "Excel / TSV",
+      inputPlaceholder: "Pega aquí tu tabla:\n\n— copiada de Excel o Word (Ctrl+V)\n— o el código fuente HTML (<table>...)\n— o el código fuente LaTeX (\\begin{tabular}...)",
+      waitingContent: "Esperando contenido…", linesWord: "línea(s)",
+      pasteBtn: "Pegar del portapapeles",
+      outputPlaceholder: "El resultado en formato Katex aparecerá aquí…",
+      fontTitle: "Familia tipográfica (Katex solo trae estas dos)", fontSerif: "Serif", fontSans: "Sans-serif",
+      sizeTitle: "Tamaño de fuente de la tabla", sizeNormal: "Tamaño normal", sizeSmall: "Pequeña (recomendado)", sizeFootnote: "Más pequeña", sizeScript: "Mínima",
+      bordersLabel: "Bordes:", borderFull: "Completos", borderHorizontal: "Solo horizontales", borderVertical: "Solo verticales", borderNone: "Sin bordes",
+      gridLabel: "Líneas entre todas las filas", boldLabel: "Encabezado en negrita",
+      convertBtn: "Convertir →", copyBtn: "Copiar resultado",
+      rowsWord: "fila(s)", detectedFormat: "formato detectado",
+      statusPasteFirst: "Pega una tabla primero.", statusNoRows: "No se pudo extraer ninguna fila.",
+      statusConverted: "Convertido correctamente.", statusCopied: "Resultado copiado al portapapeles.",
+      statusClipboardBlocked: "El navegador bloqueó el acceso al portapapeles. Pega con Ctrl+V dentro del recuadro.",
+      statusErrorPrefix: "Error: "
+    },
+    en: {
+      pageTitle: "table2katex — Table converter for Dynalist",
+      brandSuffix: "· for Dynalist",
+      subtitle: "Paste a table on the left, pick its source format, and convert it to Katex.",
+      panelInput: "Input", panelOutput: "Output",
+      fmtAuto: "Auto", fmtHtml: "HTML", fmtLatex: "LaTeX", fmtTsv: "Excel / TSV",
+      inputPlaceholder: "Paste your table here:\n\n— copied from Excel or Word (Ctrl+V)\n— or raw HTML source (<table>...)\n— or raw LaTeX source (\\begin{tabular}...)",
+      waitingContent: "Waiting for content…", linesWord: "line(s)",
+      pasteBtn: "Paste from clipboard",
+      outputPlaceholder: "The Katex-formatted result will appear here…",
+      fontTitle: "Font family (Katex only ships these two)", fontSerif: "Serif", fontSans: "Sans-serif",
+      sizeTitle: "Table font size", sizeNormal: "Normal size", sizeSmall: "Small (recommended)", sizeFootnote: "Smaller", sizeScript: "Smallest",
+      bordersLabel: "Borders:", borderFull: "Full", borderHorizontal: "Horizontal only", borderVertical: "Vertical only", borderNone: "None",
+      gridLabel: "Lines between every row", boldLabel: "Bold header",
+      convertBtn: "Convert →", copyBtn: "Copy result",
+      rowsWord: "row(s)", detectedFormat: "detected format",
+      statusPasteFirst: "Paste a table first.", statusNoRows: "Couldn't extract any rows.",
+      statusConverted: "Converted successfully.", statusCopied: "Result copied to clipboard.",
+      statusClipboardBlocked: "The browser blocked clipboard access. Paste with Ctrl+V inside the box.",
+      statusErrorPrefix: "Error: "
+    },
+    fr: {
+      pageTitle: "table2katex — Convertisseur de tableaux pour Dynalist",
+      brandSuffix: "· pour Dynalist",
+      subtitle: "Collez un tableau à gauche, choisissez son format source, puis convertissez-le en Katex.",
+      panelInput: "Entrée", panelOutput: "Sortie",
+      fmtAuto: "Auto", fmtHtml: "HTML", fmtLatex: "LaTeX", fmtTsv: "Excel / TSV",
+      inputPlaceholder: "Collez votre tableau ici :\n\n— copié depuis Excel ou Word (Ctrl+V)\n— ou le code source HTML (<table>...)\n— ou le code source LaTeX (\\begin{tabular}...)",
+      waitingContent: "En attente de contenu…", linesWord: "ligne(s)",
+      pasteBtn: "Coller depuis le presse-papiers",
+      outputPlaceholder: "Le résultat au format Katex apparaîtra ici…",
+      fontTitle: "Police de caractères (Katex n'en propose que deux)", fontSerif: "Serif", fontSans: "Sans-serif",
+      sizeTitle: "Taille de police du tableau", sizeNormal: "Taille normale", sizeSmall: "Petite (recommandé)", sizeFootnote: "Plus petite", sizeScript: "Minimale",
+      bordersLabel: "Bordures :", borderFull: "Complètes", borderHorizontal: "Horizontales seulement", borderVertical: "Verticales seulement", borderNone: "Aucune",
+      gridLabel: "Lignes entre chaque rangée", boldLabel: "En-tête en gras",
+      convertBtn: "Convertir →", copyBtn: "Copier le résultat",
+      rowsWord: "rangée(s)", detectedFormat: "format détecté",
+      statusPasteFirst: "Collez d'abord un tableau.", statusNoRows: "Impossible d'extraire une seule rangée.",
+      statusConverted: "Converti avec succès.", statusCopied: "Résultat copié dans le presse-papiers.",
+      statusClipboardBlocked: "Le navigateur a bloqué l'accès au presse-papiers. Collez avec Ctrl+V dans le cadre.",
+      statusErrorPrefix: "Erreur : "
+    },
+    de: {
+      pageTitle: "table2katex — Tabellenkonverter für Dynalist",
+      brandSuffix: "· für Dynalist",
+      subtitle: "Fügen Sie links eine Tabelle ein, wählen Sie das Quellformat, und wandeln Sie sie in Katex um.",
+      panelInput: "Eingabe", panelOutput: "Ausgabe",
+      fmtAuto: "Auto", fmtHtml: "HTML", fmtLatex: "LaTeX", fmtTsv: "Excel / TSV",
+      inputPlaceholder: "Tabelle hier einfügen:\n\n— aus Excel oder Word kopiert (Strg+V)\n— oder HTML-Quellcode (<table>...)\n— oder LaTeX-Quellcode (\\begin{tabular}...)",
+      waitingContent: "Warte auf Inhalt…", linesWord: "Zeile(n)",
+      pasteBtn: "Aus Zwischenablage einfügen",
+      outputPlaceholder: "Das Ergebnis im Katex-Format erscheint hier…",
+      fontTitle: "Schriftart (Katex bietet nur diese beiden)", fontSerif: "Serif", fontSans: "Serifenlos",
+      sizeTitle: "Schriftgröße der Tabelle", sizeNormal: "Normale Größe", sizeSmall: "Klein (empfohlen)", sizeFootnote: "Kleiner", sizeScript: "Minimal",
+      bordersLabel: "Rahmen:", borderFull: "Vollständig", borderHorizontal: "Nur horizontal", borderVertical: "Nur vertikal", borderNone: "Keine",
+      gridLabel: "Linien zwischen allen Zeilen", boldLabel: "Kopfzeile fett",
+      convertBtn: "Umwandeln →", copyBtn: "Ergebnis kopieren",
+      rowsWord: "Zeile(n)", detectedFormat: "erkanntes Format",
+      statusPasteFirst: "Fügen Sie zuerst eine Tabelle ein.", statusNoRows: "Es konnte keine Zeile extrahiert werden.",
+      statusConverted: "Erfolgreich umgewandelt.", statusCopied: "Ergebnis in die Zwischenablage kopiert.",
+      statusClipboardBlocked: "Der Browser hat den Zugriff auf die Zwischenablage blockiert. Mit Strg+V im Feld einfügen.",
+      statusErrorPrefix: "Fehler: "
+    },
+    ru: {
+      pageTitle: "table2katex — Конвертер таблиц для Dynalist",
+      brandSuffix: "· для Dynalist",
+      subtitle: "Вставьте таблицу слева, выберите её исходный формат и преобразуйте в Katex.",
+      panelInput: "Ввод", panelOutput: "Результат",
+      fmtAuto: "Авто", fmtHtml: "HTML", fmtLatex: "LaTeX", fmtTsv: "Excel / TSV",
+      inputPlaceholder: "Вставьте таблицу сюда:\n\n— скопированную из Excel или Word (Ctrl+V)\n— или исходный код HTML (<table>...)\n— или исходный код LaTeX (\\begin{tabular}...)",
+      waitingContent: "Ожидание содержимого…", linesWord: "строк(и)",
+      pasteBtn: "Вставить из буфера обмена",
+      outputPlaceholder: "Результат в формате Katex появится здесь…",
+      fontTitle: "Гарнитура шрифта (в Katex есть только эти две)", fontSerif: "С засечками", fontSans: "Без засечек",
+      sizeTitle: "Размер шрифта таблицы", sizeNormal: "Обычный размер", sizeSmall: "Маленький (рекомендуется)", sizeFootnote: "Меньше", sizeScript: "Минимальный",
+      bordersLabel: "Границы:", borderFull: "Полные", borderHorizontal: "Только горизонтальные", borderVertical: "Только вертикальные", borderNone: "Без границ",
+      gridLabel: "Линии между всеми строками", boldLabel: "Жирный заголовок",
+      convertBtn: "Преобразовать →", copyBtn: "Скопировать результат",
+      rowsWord: "строк(и)", detectedFormat: "определённый формат",
+      statusPasteFirst: "Сначала вставьте таблицу.", statusNoRows: "Не удалось извлечь ни одной строки.",
+      statusConverted: "Успешно преобразовано.", statusCopied: "Результат скопирован в буфер обмена.",
+      statusClipboardBlocked: "Браузер заблокировал доступ к буферу обмена. Вставьте через Ctrl+V прямо в поле.",
+      statusErrorPrefix: "Ошибка: "
+    },
+    zh: {
+      pageTitle: "table2katex — Dynalist 表格转换工具",
+      brandSuffix: "· Dynalist 专用",
+      subtitle: "在左侧粘贴表格,选择其来源格式,然后转换为 Katex。",
+      panelInput: "输入", panelOutput: "输出",
+      fmtAuto: "自动", fmtHtml: "HTML", fmtLatex: "LaTeX", fmtTsv: "Excel / TSV",
+      inputPlaceholder: "在此粘贴表格:\n\n— 从 Excel 或 Word 复制(Ctrl+V)\n— 或 HTML 源代码(<table>...)\n— 或 LaTeX 源代码(\\begin{tabular}...)",
+      waitingContent: "等待输入内容…", linesWord: "行",
+      pasteBtn: "从剪贴板粘贴",
+      outputPlaceholder: "Katex 格式的结果将显示在此处…",
+      fontTitle: "字体(Katex 仅内置这两种)", fontSerif: "衬线体", fontSans: "无衬线体",
+      sizeTitle: "表格字号", sizeNormal: "正常大小", sizeSmall: "较小(推荐)", sizeFootnote: "更小", sizeScript: "最小",
+      bordersLabel: "边框:", borderFull: "完整", borderHorizontal: "仅水平线", borderVertical: "仅垂直线", borderNone: "无边框",
+      gridLabel: "每行之间加线", boldLabel: "表头加粗",
+      convertBtn: "转换 →", copyBtn: "复制结果",
+      rowsWord: "行", detectedFormat: "检测到的格式",
+      statusPasteFirst: "请先粘贴一个表格。", statusNoRows: "未能提取任何行。",
+      statusConverted: "转换成功。", statusCopied: "结果已复制到剪贴板。",
+      statusClipboardBlocked: "浏览器阻止了剪贴板访问。请在框内使用 Ctrl+V 粘贴。",
+      statusErrorPrefix: "错误:"
+    }
+  };
+
+  let currentLang = "es";
+  function t() { return translations[currentLang]; }
+
+  function applyLanguage(lang) {
+    currentLang = translations[lang] ? lang : "es";
+    const tr = t();
+    document.documentElement.lang = currentLang;
+    document.title = tr.pageTitle;
+    document.getElementById("brandSuffix").textContent = tr.brandSuffix;
+    document.getElementById("headerSubtitle").textContent = tr.subtitle;
+    document.getElementById("panelInputTitle").textContent = tr.panelInput;
+    document.getElementById("panelOutputTitle").textContent = tr.panelOutput;
+
+    const fmtMap = { auto: tr.fmtAuto, html: tr.fmtHtml, latex: tr.fmtLatex, tsv: tr.fmtTsv };
+    [...formatGroup.children].forEach(btn => { btn.textContent = fmtMap[btn.dataset.format]; });
+
+    inputArea.placeholder = tr.inputPlaceholder;
+    outputArea.placeholder = tr.outputPlaceholder;
+    document.getElementById("pasteBtn").textContent = tr.pasteBtn;
+    document.getElementById("copyBtn").textContent = tr.copyBtn;
+    document.getElementById("convertBtn").textContent = tr.convertBtn;
+    document.getElementById("bordersLabelText").textContent = tr.bordersLabel;
+    document.getElementById("gridLabelText").textContent = tr.gridLabel;
+    document.getElementById("boldLabelText").textContent = tr.boldLabel;
+
+    const fontSelect = document.getElementById("fontSelect");
+    fontSelect.title = tr.fontTitle;
+    fontSelect.options[0].textContent = tr.fontSerif;
+    fontSelect.options[1].textContent = tr.fontSans;
+
+    const sizeSelect = document.getElementById("sizeSelect");
+    sizeSelect.title = tr.sizeTitle;
+    sizeSelect.options[0].textContent = tr.sizeNormal;
+    sizeSelect.options[1].textContent = tr.sizeSmall;
+    sizeSelect.options[2].textContent = tr.sizeFootnote;
+    sizeSelect.options[3].textContent = tr.sizeScript;
+
+    const borderSelect = document.getElementById("borderStyle");
+    borderSelect.options[0].textContent = tr.borderFull;
+    borderSelect.options[1].textContent = tr.borderHorizontal;
+    borderSelect.options[2].textContent = tr.borderVertical;
+    borderSelect.options[3].textContent = tr.borderNone;
+
+    // Refresca los contadores dinamicos con el idioma nuevo
+    inputArea.dispatchEvent(new Event("input"));
+    outputInfo.textContent = "";
+    statusMsg.textContent = "";
+    statusMsg.className = "status";
+  }
+
+  // ---------- Estado del formato de entrada ----------
+  let selectedFormat = "auto";
+  const formatGroup = document.getElementById("formatGroup");
+  formatGroup.addEventListener("click", (e) => {
+    const btn = e.target.closest(".toggle-btn");
+    if (!btn) return;
+    [...formatGroup.children].forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    selectedFormat = btn.dataset.format;
+  });
+
+  // ---------- Utilidades de parsing ----------
+  function detectFormat(text) {
+    if (/<table/i.test(text)) return "html";
+    if (/\\begin\{(tabular|longtable|tabularx)\}/.test(text)) return "latex";
+    return "tsv";
+  }
+
+  function decodeHtmlEntities(text) {
+    const ta = document.createElement("textarea");
+    ta.innerHTML = text;
+    return ta.value.replace(/\u00A0/g, " ");
+  }
+
+  function cleanCell(text) {
+    let t = text.replace(/<[^>]+>/g, "");
+    t = decodeHtmlEntities(t);
+    t = t.replace(/\s+/g, " ").trim();
+    return t;
+  }
+
+  function parseHtml(raw) {
+    let body = raw;
+    const tableMatch = raw.match(/<table[^>]*>([\s\S]*?)<\/table>/i);
+    if (tableMatch) body = tableMatch[1];
+
+    const rows = [];
+    const trRe = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
+    let trMatch;
+    while ((trMatch = trRe.exec(body)) !== null) {
+      const rowHtml = trMatch[1];
+      const cellRe = /<t[dh]([^>]*)>([\s\S]*?)<\/t[dh]>/gi;
+      const cells = [];
+      let cellMatch;
+      while ((cellMatch = cellRe.exec(rowHtml)) !== null) {
+        const attrs = cellMatch[1];
+        const spanMatch = attrs.match(/colspan\s*=\s*["']?(\d+)/i);
+        const span = spanMatch ? Math.max(1, parseInt(spanMatch[1], 10)) : 1;
+        cells.push({ text: cleanCell(cellMatch[2]), span });
+      }
+      if (cells.length) rows.push(cells);
+    }
+    return rows;
+  }
+
+  function parseLatex(raw) {
+    const re = /\\begin\{(tabular|longtable|tabularx)\}(\{[^}]*\})?([\s\S]*?)\\end\{\1\}/;
+    const m = raw.match(re);
+    if (!m) throw new Error("No se encontró un entorno tabular/longtable/tabularx.");
+    let content = m[3];
+
+    // Katex no soporta fusion de filas (\multirow no existe como macro en
+    // Katex). En vez de romper el renderizado, se descarta el envoltorio
+    // y se deja solo su contenido como texto normal en esa celda.
+    content = content.replace(/\\multirow\{-?\d+\}\{[^}]*\}\{([\s\S]*?)\}/g, "$1");
+
+    content = content.split("\\hline").join("");
+    content = content.split("\\toprule").join("");
+    content = content.split("\\midrule").join("");
+    content = content.split("\\bottomrule").join("");
+    content = content.replace(/\\caption\{[^}]*\}/g, "");
+    content = content.replace(/\\label\{[^}]*\}/g, "");
+
+    content = content.split("\\\\").join("\n");
+
+    const multicolRe = /^\s*\\multicolumn\{(\d+)\}\{[^}]*\}\{([\s\S]*)\}\s*$/;
+
+    const rows = [];
+    content.split("\n").forEach(line => {
+      if (!line.trim()) return;
+      const cells = line.split("&").map(raw => {
+        const mc = raw.match(multicolRe);
+        if (mc) {
+          return { text: cleanCell(mc[2]), span: Math.max(1, parseInt(mc[1], 10)) };
+        }
+        return { text: cleanCell(raw), span: 1 };
+      });
+      rows.push(cells);
+    });
+    return rows;
+  }
+
+  function parseTsv(raw) {
+    const lines = raw.split(/\r?\n/).filter(l => l.trim() !== "");
+    return lines.map(line => {
+      const cells = line.includes("\t") ? line.split("\t") : line.split(/\s{2,}/);
+      return cells.map(c => ({ text: cleanCell(c), span: 1 }));
+    });
+  }
+
+  function escapeKatexText(text) {
+    // El backslash se protege primero con un marcador temporal, para que
+    // las secuencias \textbackslash{} que insertamos al final no vuelvan
+    // a pasar por el resto de los reemplazos (y se escapen a sí mismas).
+    const BS_MARK = "\u0001";
+    let t = text.split("\\").join(BS_MARK);
+    t = t
+      .replace(/%/g, "\\%")
+      .replace(/#/g, "\\#")
+      .replace(/_/g, "\\_")
+      .replace(/\$/g, "\\$")
+      .replace(/\{/g, "\\{")
+      .replace(/\}/g, "\\}")
+      .replace(/\^/g, "\\textasciicircum{}")
+      .replace(/~/g, "\\textasciitilde{}");
+    t = t.split(BS_MARK).join("\\textbackslash{}");
+    return t;
+  }
+
+  // ---------- Construcción de salida Katex ----------
+  function buildKatex(rows, opts) {
+    const ncols = Math.max(...rows.map(r => r.reduce((sum, c) => sum + (c.span || 1), 0)));
+    const textCmd = opts.font === "sans" ? "\\textsf" : "\\text";
+
+    const katexRows = rows.map((cells, r) => {
+      const isHeader = r === 0;
+      const formatted = cells.map(cell => {
+        const val = escapeKatexText(cell.text || "");
+        let rendered;
+        if (isHeader && opts.bold) {
+          rendered = opts.font === "sans" ? `\\textsf{\\textbf{${val}}}` : `\\textbf{${val}}`;
+        } else {
+          rendered = `${textCmd}{${val}}`;
+        }
+        if (cell.span && cell.span > 1) {
+          rendered = `\\multicolumn{${cell.span}}{c}{${rendered}}`;
+        }
+        return rendered;
+      });
+
+      // Si la fila no llega a ocupar todas las columnas logicas (contando
+      // fusiones), se rellena con celdas vacias para que el array de Katex
+      // quede parejo.
+      const usedCols = cells.reduce((sum, c) => sum + (c.span || 1), 0);
+      for (let p = 0; p < ncols - usedCols; p++) {
+        formatted.push(`${textCmd}{}`);
+      }
+
+      return formatted.join(" & ");
+    });
+
+    const includeHLines = (opts.borderStyle === "full" || opts.borderStyle === "horizontal");
+    const includeVLines = (opts.borderStyle === "full" || opts.borderStyle === "vertical");
+
+    const colSpec = includeVLines ? "|" + "c|".repeat(ncols) : "c".repeat(ncols);
+
+    const tokens = [];
+    if (includeHLines) tokens.push("\\hline");
+
+    katexRows.forEach((row, i) => {
+      const isLast = i === katexRows.length - 1;
+      const isHeaderRow = i === 0;
+      tokens.push(row);
+      if (includeHLines) {
+        tokens.push("\\\\");
+        if (!isLast && (isHeaderRow || opts.grid)) tokens.push("\\hline");
+      } else {
+        if (!isLast) tokens.push("\\\\");
+      }
+    });
+
+    if (includeHLines) tokens.push("\\hline");
+
+    const body = tokens.join(" ");
+    const sizeCmd = (opts.size && opts.size !== "none") ? `\\${opts.size} ` : "";
+    return `$$${sizeCmd}\\begin{array}{${colSpec}} ${body} \\end{array}$$`;
+  }
+
+  // ---------- Conexión con la UI ----------
+  const inputArea = document.getElementById("inputArea");
+  const outputArea = document.getElementById("outputArea");
+  const inputInfo = document.getElementById("inputInfo");
+  const outputInfo = document.getElementById("outputInfo");
+  const statusMsg = document.getElementById("statusMsg");
+
+  inputArea.addEventListener("input", () => {
+    const n = inputArea.value.trim();
+    inputInfo.textContent = n ? `${n.split(/\r?\n/).length} ${t().linesWord}` : t().waitingContent;
+  });
+
+  document.getElementById("pasteBtn").addEventListener("click", async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      inputArea.value = text;
+      inputArea.dispatchEvent(new Event("input"));
+    } catch {
+      statusMsg.textContent = t().statusClipboardBlocked;
+      statusMsg.className = "status err";
+    }
+  });
+
+  document.getElementById("convertBtn").addEventListener("click", () => {
+    const raw = inputArea.value;
+    if (!raw.trim()) {
+      statusMsg.textContent = t().statusPasteFirst;
+      statusMsg.className = "status err";
+      return;
+    }
+
+    const fmt = selectedFormat === "auto" ? detectFormat(raw) : selectedFormat;
+
+    try {
+      let rows;
+      if (fmt === "html") rows = parseHtml(raw);
+      else if (fmt === "latex") rows = parseLatex(raw);
+      else rows = parseTsv(raw);
+
+      if (!rows.length) throw new Error(t().statusNoRows);
+
+      const opts = {
+        bold: document.getElementById("optBold").checked,
+        grid: document.getElementById("optGrid").checked,
+        borderStyle: document.getElementById("borderStyle").value,
+        size: document.getElementById("sizeSelect").value,
+        font: document.getElementById("fontSelect").value
+      };
+
+      const output = buildKatex(rows, opts);
+      outputArea.value = output;
+      outputInfo.textContent = `${rows.length} ${t().rowsWord} · ${t().detectedFormat}: ${fmt}`;
+      statusMsg.textContent = t().statusConverted;
+      statusMsg.className = "status ok";
+
+      navigator.clipboard.writeText(output).catch(() => {});
+    } catch (err) {
+      statusMsg.textContent = t().statusErrorPrefix + err.message;
+      statusMsg.className = "status err";
+      outputArea.value = "";
+      outputInfo.textContent = "";
+    }
+  });
+
+  document.getElementById("copyBtn").addEventListener("click", () => {
+    if (!outputArea.value) return;
+    navigator.clipboard.writeText(outputArea.value).then(() => {
+      statusMsg.textContent = t().statusCopied;
+      statusMsg.className = "status ok";
+    });
+  });
+
+  // ---------- Selector de idioma ----------
+  document.getElementById("langSelect").addEventListener("change", (e) => {
+    applyLanguage(e.target.value);
+  });
+
+  // Idioma inicial: el del navegador si es uno de los soportados, si no, español
+  const browserLang = (navigator.language || "es").slice(0, 2).toLowerCase();
+  const startLang = translations[browserLang] ? browserLang : "es";
+  document.getElementById("langSelect").value = startLang;
+  applyLanguage(startLang);
+})();
+</script>
+</body>
+</html>
