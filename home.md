@@ -34,14 +34,15 @@ KaTeX Macro Limitations: KaTeX uses LaTeX array syntax (\begin{array}{c|c|c}). H
 
 Horizontal Scrolling: Very wide tables with many columns will stretch your Dynalist layout, requiring horizontal scrolling depending on your screen size or view mode.
 
-Local Execution: It is a single .html file. You can simply download it, double-click it to open it in any modern browser, and use it completely offline.
-
 📥 How to use it
 
-Download or copy the code below (save it as table2katex.html on your computer).
+You can use this [page](https://alekslender.github.io/table2katex/) on line, or for local execution (It is a single .html file) You can simply download it, and use it completely offline.
 
 Open it in your web browser.
 
 Paste your table on the left panel, tweak your preferred formatting options, and click Convert.
 
 Paste the resulting block ($$...$$) directly into any Dynalist bullet point!
+
+This is an exanple of what you can get:
+![your table pasted in different format](ejemplo.png)
